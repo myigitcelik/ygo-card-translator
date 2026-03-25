@@ -36,7 +36,7 @@ export default function Home() {
         </h1>
 
         <p className="text-slate-400 mb-8">
-          Translate Yu-Gi-Oh cards from English to Turkish instantly
+          Translate Yu-Gi-Oh cards from English to Turkish instantly!
         </p>
 
         {/* Search */}
