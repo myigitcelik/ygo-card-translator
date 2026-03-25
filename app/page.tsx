@@ -1,111 +1,128 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
 
 export default function Home() {
   const [query, setQuery] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [card, setCard] = useState<any>(null);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const search = async () => {
-    if (!query) return;
+  const backend = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-    setLoading(true);
+  // autocomplete search
+  useEffect(() => {
+    if (!query || query.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSuggestions([]);
+      return;
+    }
 
-    try {
+    const timeout = setTimeout(async () => {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/card?name=${encodeURIComponent(query)}`
+        `https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=${query}`
       );
 
       const data = await res.json();
-      setCard(data);
-    } catch (e) {
-      console.error(e);
-    }
 
+      if (data.data) {
+        setSuggestions(data.data.slice(0, 6));
+      }
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [query]);
+
+  const search = async (name?: string) => {
+    const searchTerm = name || query;
+    setLoading(true);
+    setSuggestions([]);
+
+    const res = await fetch(
+      `${backend}/card?name=${encodeURIComponent(searchTerm)}`
+    );
+
+    const data = await res.json();
+    setCard(data);
     setLoading(false);
   };
 
   return (
     <main className="min-h-screen bg-slate-950 text-white p-8">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <h1 className="text-4xl font-bold mb-2">
+        <h1 className="text-4xl font-bold mb-6">
           🃏 YGO Card Translator
         </h1>
 
-        <p className="text-slate-400 mb-8">
-          Translate Yu-Gi-Oh cards from English to Turkish instantly!
-        </p>
-
         {/* Search */}
-        <div className="flex gap-2 mb-8">
+        <div className="relative">
           <input
-            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 outline-none focus:border-purple-500"
-            placeholder="Search card... (Dark Magician)"
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 outline-none"
+            placeholder="Search card..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && search()}
           />
 
-          <button
-            onClick={search}
-            className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-semibold transition"
-          >
-            Translate
-          </button>
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
+            <div className="absolute w-full bg-slate-900 border border-slate-700 rounded-lg mt-2 z-10">
+              {suggestions.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => {
+                    setQuery(s.name);
+                    search(s.name);
+                  }}
+                  className="flex items-center gap-3 p-3 hover:bg-slate-800 cursor-pointer"
+                >
+                  <img
+                    src={s.card_images[0].image_url_small}
+                    className="w-10 h-14 object-cover rounded"
+                  />
+
+                  <div>
+                    <div className="font-semibold">{s.name}</div>
+                    <div className="text-xs text-slate-400">
+                      {s.type}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="text-slate-400">Translating card...</div>
-        )}
-
-        {/* Card */}
-        {card && !loading && (
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Image */}
-            <div className="bg-slate-900 p-4 rounded-xl">
-              <img
+        {/* Result */}
+        {card && (
+          <div className="grid md:grid-cols-2 gap-8 mt-8">
+            <div>
+              <Image
                 src={card.image}
-                className="w-full rounded-lg"
+                alt={card.name}
+                width={400}
+                height={600}
+                className="rounded-lg"
               />
             </div>
 
-            {/* Text */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl text-slate-400">
-                  English
-                </h2>
-                <h3 className="text-2xl font-bold">
-                  {card.name}
-                </h3>
-                <p className="text-slate-300 whitespace-pre-line mt-2">
-                  {card.desc}
-                </p>
-              </div>
+            <div>
+              <h2 className="text-2xl font-bold">{card.name}</h2>
 
-              <div className="border-t border-slate-800 pt-4">
-                <h2 className="text-xl text-purple-400">
-                  Turkish
-                </h2>
-                <h3 className="text-2xl font-bold">
-                  {card.name_translated}
-                </h3>
-                <p className="text-slate-200 whitespace-pre-line mt-2">
-                  {card.desc_translated}
-                </p>
-              </div>
+              <p className="text-slate-400 mt-4 whitespace-pre-line">
+                {card.desc}
+              </p>
+
+              <hr className="my-6 border-slate-800" />
+
+              <p className="text-white whitespace-pre-line">
+                {card.desc_translated}
+              </p>
             </div>
           </div>
         )}
-
-        {/* Footer */}
-        <div className="mt-16 text-center text-slate-600 text-sm">
-          Powered by YGOPRODeck API • LibreTranslate
-        </div>
       </div>
     </main>
   );
