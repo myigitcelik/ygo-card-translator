@@ -15,7 +15,7 @@ export default function Home() {
 
     try {
       const res = await fetch(
-        `http://localhost:8000/card?name=${encodeURIComponent(query)}`
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/card?name=${encodeURIComponent(query)}`
       );
 
       const data = await res.json();
